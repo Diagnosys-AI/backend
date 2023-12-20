@@ -5,6 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
+.streamlit
+*.sqlite
 
 # Distribution / packaging
 .Python
@@ -127,6 +129,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+data/
+storage/
 
 # Spyder project settings
 .spyderproject
