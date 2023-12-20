@@ -1,9 +1,7 @@
 import json
 from typing import TypeVar
 from fastapi import HTTPException, Request
-
 from pydantic import BaseModel, ValidationError
-
 
 T = TypeVar("T", bound=BaseModel)
 
