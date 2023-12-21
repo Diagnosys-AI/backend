@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
 from app.utils.json_model import json_to_model
 from app.utils.index import get_index
+from app.utils.tru_query_engine_recorder import get_tru_query_engine_recorder
 from llama_index import VectorStoreIndex
 from llama_index.llms import ChatMessage
 from llama_index.llms.types import MessageRole
+import io
 
 from pydantic import BaseModel
 
@@ -24,7 +26,7 @@ class _ChatData(BaseModel):
 
 def format_history_prompt(formData):
     prompt = f"""
-    You are an AI medical advisor who integrates a comprehensive array of medical resources for verifying information and assumptions. These include PubMed, CDC, WHO, ClinicalTrials.gov, UpToDate, Mayo Clinic, Cleveland Clinic, AMA, NIH, BMJ, The Lancet, JAMA, Cochrane Library, Medscape, WebMD, NCBI, ScienceDirect, EMBASE, PLOS Medicine, Nature Medicine, Cell, MDPI, Radiopaedia, PsychINFO, BioMed Central, ACP, and NEJM. You are committed to continually expanding your use of resources, aiming to utilize the full breadth of these tools and incorporate new and better ones as they become available. This ensures that you provide the most up-to-date, evidence-based medical information and advice, drawing from a wide range of reputable and peer-reviewed sources. You have been provided a patient history, that includes the following information:
+    You are a medical advisor who integrates a comprehensive array of medical resources for verifying information and assumptions. You have been provided a patient history, that includes the following information:
 
     1. **Introduction:**: {formData['introduction']}
     2. **Presenting Complaint (PC):** {formData['presentingComplaint']}
@@ -38,14 +40,9 @@ def format_history_prompt(formData):
     6. **Social History (SHx):**: {formData['socialHistory']}
     7. **Family History (FHx):** {formData['familyHistory']}
     
-    Provide a list of direct, straightforward list of potential diagnoses, investigations and treatments for this presenting condition. Use the History of Presenting Complaint, Past Medical History, Medication History, Social History and Family History to inform your suggestions. You can use the following resources to help you:
-    
-    - The Oxford Handbook of Clinical Medicine is a pocket textbook aimed at medical students and junior doctors, and covers all aspects of clinical medicine.
-    - Kumar & Clark's Clinical Medicine - Textbook aimed at medical students in the preclinical years of study.
-    - DermNet NZ - DermNet NZ is a website dedicated to dermatology. It has a large collection of photos and information on skin conditions.
-    - NICE CKS - NICE guidelines are evidence-based recommendations for health and care in England. They set out the care and services suitable for most people with a specific condition or need, and people in particular circumstances or settings.
+    Provide a list of Management and Further treatment options for this patient.
     """
-    return "tell me a joke"
+    return prompt
 
 @r.post("")
 async def chat(
@@ -82,26 +79,29 @@ async def chat(
         for m in data.messages
     ]
 
-    query_engine = index.as_query_engine(
-        similarity_top_k=1,
-        streaming=True
-    )
-    response = query_engine.query(
-        lastMessage.content
-    )
-
     # query chat engine
     # chat_engine = index.as_chat_engine()
-
     # chat_engine = Gemini()
     # response = chat_engine.stream_chat(messages)
 
-    # stream response
-    async def event_generator():
-        for token in response.response_gen:
-            # If client closes connection, stop sending events
-            if await request.is_disconnected():
-                break
-            yield token
+    query_engine = index.as_query_engine(
+    )
+    tru_query_engine_recorder = get_tru_query_engine_recorder(query_engine)
 
-    return StreamingResponse(event_generator(), media_type="text/plain")
+    with tru_query_engine_recorder as recording:
+        response = query_engine.query(
+            lastMessage.content
+        )
+
+    # Convert Response string into a Stream
+    # Mock because TruLens doesnt work well with streaming a Gemini Index
+    stream = io.StringIO(str(response) + "\n")
+
+    # async def event_generator():
+    #     for token in response.response_gen:
+    #         # If client closes connection, stop sending events
+    #         if await request.is_disconnected():
+    #             break
+    #         yield token
+
+    return StreamingResponse(stream, media_type="text/plain")

@@ -6,7 +6,7 @@ from llama_index.llms import Gemini
 
 def get_index(
         storage_dir: str = "./storage",
-        data_dir: str = "./data",
+        data_dir: str = "./md",
 ):
     logger = logging.getLogger("uvicorn")
     embed_model = GeminiEmbedding(model_name="models/embedding-001")
@@ -28,6 +28,7 @@ def get_index(
         index = load_index_from_storage(storage_context,service_context=service_context)
         logger.info(f"Finished loading index from {storage_dir}")
     return index
+
 
 
 if __name__ == '__main__':
